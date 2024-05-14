@@ -7,6 +7,8 @@ import { Strategy } from "passport-local";
 import GoogleStrategy from "passport-google-oauth2";
 import session from "express-session";
 import env from "dotenv";
+import pg from "pg";
+const { Pool } = pg;
 
 const app = express();
 const port = 3000;
@@ -26,12 +28,8 @@ app.use(express.static("public"));
 app.use(passport.initialize());
 app.use(passport.session());
 
-const db = new pg.Client({
-  user: process.env.PG_USER,
-  host: process.env.PG_HOST,
-  database: process.env.PG_DATABASE,
-  password: process.env.PG_PASSWORD,
-  port: process.env.PG_PORT,
+const db = new Pool({
+  connectionString: process.env.PORTF_URL,
 });
 db.connect();
 
@@ -59,7 +57,7 @@ app.get("/logout", (req, res) => {
 app.get("/secrets", (req, res) => {
   if (req.isAuthenticated()) {
     res.render("secrets.ejs", {
-      secret: req.user.secret
+      secret: req.user.secret,
     });
 
     //TODO: Update this to pull in the user secret to render in secrets.ejs
@@ -70,9 +68,9 @@ app.get("/secrets", (req, res) => {
 
 app.get("/submit", async (req, res) => {
   if (req.isAuthenticated) {
-    res.render('submit.ejs');
+    res.render("submit.ejs");
   } else {
-    res.redirect('/login');
+    res.redirect("/login");
   }
 });
 //TODO: Add a get route for the submit button
@@ -137,13 +135,16 @@ app.post("/register", async (req, res) => {
 //TODO: Create the post route for submit.
 //Handle the submitted data and add it to the database
 
-app.post('/submit', async (req, res) => {
+app.post("/submit", async (req, res) => {
   const secret = req.body.secret;
   console.log(req.user);
-  const result = await db.query('UPDATE users SET secret = $1 WHERE id = $2 RETURNING *', [secret, req.user.id]);
+  const result = await db.query(
+    "UPDATE users SET secret = $1 WHERE id = $2 RETURNING *",
+    [secret, req.user.id]
+  );
   const updatedUser = result.rows[0];
   console.log(updatedUser);
-  res.redirect('/secrets');
+  res.redirect("/secrets");
 });
 
 passport.use(
